@@ -104,7 +104,7 @@ fn demo(music_file: &Path, sound_file: Option<&Path>) -> Result<(), String> {
                 Event::JoyButtonDown{ /* button_idx, */ ..  } => {
                     if let Some(ch) = cur_ch.next() {
                         sdl2::mixer::Channel(ch).halt();
-                        sdl2::mixer::Channel(ch).play(&sound_chunk, 1)?;
+                        sdl2::mixer::Channel(ch).play(&sound_chunk, 0)?;
                     }
                 }
                 Event::Quit{..} => break,
