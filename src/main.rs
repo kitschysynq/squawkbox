@@ -69,6 +69,7 @@ fn demo(music_file: &Path, sound_file: Option<&Path>) -> Result<(), String> {
     println!("music type => {:?}", music.get_type());
     println!("music volume => {:?}", sdl2::mixer::Music::get_volume());
     println!("play => {:?}", music.play(1));
+    sdl2::mixer::Music::pause();
 
     let joystick_subsystem = sdl.joystick()?;
     let available  = joystick_subsystem.num_joysticks()
@@ -91,20 +92,26 @@ fn demo(music_file: &Path, sound_file: Option<&Path>) -> Result<(), String> {
 
     let mut cur_ch = (0..4).cycle();
 
-    if let Some(sound_file_path) = sound_file {
-        let sound_chunk = sdl2::mixer::Chunk::from_file(sound_file_path)
-            .map_err(|e| format!("Cannot load sound file: {:?}", e))?;
-
-        println!("chunk volume => {:?}", sound_chunk.get_volume());
+    if let Ok(sounds) = load_sounds() {
+        let mut cur_sound = (0..sounds.len()).cycle();
 
         for event in sdl.event_pump()?.wait_iter() {
             use sdl2::event::Event;
 
             match event {
-                Event::JoyButtonDown{ /* button_idx, */ ..  } => {
-                    if let Some(ch) = cur_ch.next() {
-                        sdl2::mixer::Channel(ch).halt();
-                        sdl2::mixer::Channel(ch).play(&sound_chunk, 0)?;
+                Event::JoyButtonDown{ button_idx, ..  } => {
+                    if button_idx == 1 {
+                        sdl2::mixer::Music::resume();
+                    } else if let Some(ch) = cur_ch.next() {
+                        if let Some(sound_idx) = cur_sound.next() {
+                            sdl2::mixer::Channel(ch).halt();
+                            sdl2::mixer::Channel(ch).play(&sounds[sound_idx], 0)?;
+                        }
+                    }
+                }
+                Event::JoyButtonUp{ button_idx, .. } => {
+                    if button_idx == 1 {
+                        sdl2::mixer::Music::pause();
                     }
                 }
                 Event::Quit{..} => break,
@@ -127,4 +134,17 @@ fn demo(music_file: &Path, sound_file: Option<&Path>) -> Result<(), String> {
     println!("quitting sdl");
 
     Ok(())
+}
+
+fn load_sounds() -> Result<Vec<sdl2::mixer::Chunk>, String> {
+    let files = vec![
+        "assets/Home Studio Stuff - Speak & Spell Vocal Sample Pack/Blips & Bloops 1_bip.wav",
+        "assets/Home Studio Stuff - Speak & Spell Vocal Sample Pack/Blips & Bloops 3_bip.wav",
+        "assets/Home Studio Stuff - Speak & Spell Vocal Sample Pack/Blips & Bloops 4_bip.wav",
+    ];
+    files
+        .iter()
+        .map(|sound_file| Path::new(sound_file))
+        .map(|path| sdl2::mixer::Chunk::from_file(path))
+        .collect()
 }
